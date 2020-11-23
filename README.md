@@ -1,0 +1,1 @@
+# django-sqlite-file-cache
