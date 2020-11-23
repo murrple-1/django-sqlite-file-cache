@@ -50,6 +50,15 @@ class TestCache(unittest.TestCase):
 
         self.assertFalse(cache.add('my_key', 'value2'))
 
+    def test_set_after_set(self):
+        cache = SQLiteFileCache(TestCache.location, {})
+
+        cache.set('my_key', 'value1')
+
+        cache.set('my_key', 'value2')
+
+        self.assertEqual(cache.get('my_key'), 'value2')
+
 
 if __name__ == '__main__':
     unittest.main()
