@@ -1,9 +1,5 @@
-import glob
-import hashlib
 import os
 import pickle
-import random
-import tempfile
 import time
 import zlib
 import sqlite3
