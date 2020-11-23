@@ -185,7 +185,5 @@ class SQLiteFileCache(BaseCache):
                     conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
 
                 conn.commit()
-        except sqlite3.OperationalError:
-            pass
         finally:
             conn.close()
