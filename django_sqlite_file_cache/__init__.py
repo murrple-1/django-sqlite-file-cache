@@ -119,7 +119,6 @@ class SQLiteFileCache(BaseCache):
             return False
         finally:
             conn.close()
-        return self._delete(self._key_to_file(key, version))
 
     def has_key(self, key, version=None):
         key = self.make_key(key, version=version)
@@ -178,7 +177,8 @@ class SQLiteFileCache(BaseCache):
                 self.clear()
                 return
             else:
-                cur = conn.execute('''SELECT key from cache_entries ORDER BY RANDOM() LIMIT ?''', (self._max_entries,))
+                limit = int(count / self._cull_frequency)
+                cur = conn.execute('''SELECT key from cache_entries ORDER BY RANDOM() LIMIT ?''', (limit,))
                 keys = map(lambda row: row[0], cur.fetchall())
 
                 for key in keys:

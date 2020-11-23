@@ -88,6 +88,32 @@ class TestCache(unittest.TestCase):
         conn.close()
         self.assertEqual(count, 0)
 
+    def test_max_entries(self):
+        cache = SQLiteFileCache(self.location, {
+            'OPTIONS': {
+                'MAX_ENTRIES': 10,
+            }
+        })
+
+        self.assertEqual(cache._max_entries, 10)
+
+        for i in range(cache._max_entries):
+            cache.set(f'my_key{i}', 'value')
+
+        conn = sqlite3.connect(self.location)
+        cur = conn.execute('''SELECT COUNT(key) FROM cache_entries''')
+        count = cur.fetchone()[0]
+        conn.close()
+        self.assertEqual(count, cache._max_entries)
+
+        cache.set('a_key', 'value')
+
+        conn = sqlite3.connect(self.location)
+        cur = conn.execute('''SELECT COUNT(key) FROM cache_entries''')
+        count = cur.fetchone()[0]
+        conn.close()
+        self.assertLess(count, cache._max_entries)
+
 
 if __name__ == '__main__':
     unittest.main()
