@@ -14,7 +14,6 @@ from django.core.files.move import file_move_safe
 
 
 class SQLiteFileCache(BaseCache):
-    cache_suffix = '.djcache'
     pickle_protocol = pickle.HIGHEST_PROTOCOL
 
     def __init__(self, location, params):

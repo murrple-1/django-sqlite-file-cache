@@ -38,6 +38,18 @@ class TestCache(unittest.TestCase):
 
         self.assertIsNone(cache.get('my_key'))
 
+    def test_add(self):
+        cache = SQLiteFileCache(TestCache.location, {})
+
+        self.assertTrue(cache.add('my_key', 'value'))
+
+    def test_add_after_set(self):
+        cache = SQLiteFileCache(TestCache.location, {})
+
+        cache.set('my_key', 'value1')
+
+        self.assertFalse(cache.add('my_key', 'value2'))
+
 
 if __name__ == '__main__':
     unittest.main()
