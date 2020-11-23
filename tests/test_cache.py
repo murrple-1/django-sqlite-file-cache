@@ -170,6 +170,17 @@ class TestCache(unittest.TestCase):
 
         cache.clear()
 
+    def test_recreate_file(self):
+        cache = SQLiteFileCache(self.location, {})
+
+        os.unlink(self.location)
+
+        self.assertIsNone(cache.get('my_key'))
+
+        cache.set('my_key', 'value')
+
+        self.assertEqual(cache.get('my_key'), 'value')
+
 
 if __name__ == '__main__':
     unittest.main()
