@@ -9,8 +9,6 @@ import zlib
 import sqlite3
 
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
-from django.core.files import locks
-from django.core.files.move import file_move_safe
 
 
 class SQLiteFileCache(BaseCache):
