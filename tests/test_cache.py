@@ -166,6 +166,8 @@ class TestCache(unittest.TestCase):
 
         self.assertFalse(cache.has_key('my_key'))
 
+        self.assertFalse(cache.delete('my_key'))
+
         cache.clear()
 
 
