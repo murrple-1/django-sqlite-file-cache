@@ -1,0 +1,13 @@
+language: python
+python:
+  - "3.6"
+cache: pip
+before_install:
+  - pip install -U pipenv
+  - pipenv --version
+install:
+  - pipenv sync --dev
+script:
+  - pipenv run coverage run --source=django_sqlite_file_cache -m unittest discover tests
+after_script:
+  - pipenv run coveralls
