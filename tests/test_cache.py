@@ -212,5 +212,29 @@ class TestCache(unittest.TestCase):
 
         self.assertEqual(len(cache.get_many([])), 0)
 
+    def test_delete_many(self):
+        cache = SQLiteFileCache(self.location, {})
+
+
+        cache.set_many({
+            'my_key1': 'value',
+            'my_key2': 4,
+            'my_key3': True,
+        })
+
+        conn = sqlite3.connect(self.location)
+        cur = conn.execute('''SELECT COUNT(key) FROM cache_entries''')
+        count = cur.fetchone()[0]
+        conn.close()
+        self.assertEqual(count, 3)
+
+        cache.delete_many(['my_key1', 'my_key2'])
+
+        conn = sqlite3.connect(self.location)
+        cur = conn.execute('''SELECT COUNT(key) FROM cache_entries''')
+        count = cur.fetchone()[0]
+        conn.close()
+        self.assertEqual(count, 1)
+
 if __name__ == '__main__':
     unittest.main()
