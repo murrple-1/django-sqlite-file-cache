@@ -48,15 +48,12 @@ class SQLiteFileCache(BaseCache):
             conn.close()
 
     def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
-        self._createfile()
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
+        self._createfile()
+
         self._cull()
-
-        expiry = self.get_backend_timeout(timeout)
-
-        value = zlib.compress(pickle.dumps(value, self.pickle_protocol))
 
         conn = sqlite3.connect(self._location)
         try:
@@ -64,12 +61,18 @@ class SQLiteFileCache(BaseCache):
                 '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,))
             row = cur.fetchone()
 
+            expiry = self.get_backend_timeout(timeout)
+
+            pickled_value = zlib.compress(pickle.dumps(value, self.pickle_protocol))
+
             if row is not None:
                 conn.execute(
-                    '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (value, expiry, key,))
+                    '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (pickled_value, expiry, key,))
             else:
                 conn.execute(
-                    '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, value, expiry))
+                    '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
+
+            del pickled_value
 
             conn.commit()
         finally:
@@ -179,7 +182,6 @@ class SQLiteFileCache(BaseCache):
 
     def _cull(self):
         conn = sqlite3.connect(self._location)
-
         try:
             cur = conn.execute('''SELECT COUNT(key) FROM cache_entries''')
             count = cur.fetchone()[0]
