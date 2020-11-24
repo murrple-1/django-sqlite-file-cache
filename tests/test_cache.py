@@ -236,5 +236,19 @@ class TestCache(unittest.TestCase):
         conn.close()
         self.assertEqual(count, 1)
 
+    def test_get_many_expired(self):
+        cache = SQLiteFileCache(self.location, {
+            'TIMEOUT': 0,
+        })
+
+
+        cache.set_many({
+            'my_key1': 'value',
+            'my_key2': 4,
+            'my_key3': True,
+        })
+
+        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 0)
+
 if __name__ == '__main__':
     unittest.main()
