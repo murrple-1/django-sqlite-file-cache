@@ -38,6 +38,34 @@ class SQLiteFileCache(BaseCache):
         else:
             return default
 
+    def get_many(self, keys, version=None):
+        if len(keys) == 0:
+            return {}
+
+        new_keys = []
+        for key in keys:
+            new_key = self.make_key(key, version=version)
+            self.validate_key(new_key)
+            new_keys.append(new_key)
+
+        key_values = {}
+
+        expired_keys = []
+
+        for row in self._conn.execute('''SELECT key, value, expires_at FROM cache_entries WHERE key IN ({})'''.format(','.join(['?'] * len(new_keys))), new_keys):
+            key, value, expires_at = row
+            if self._is_expired(expires_at):
+                expired_keys.append(key)
+            else:
+                key_values[key] = pickle.loads(zlib.decompress(value))
+
+        if len(expired_keys) > 0:
+            with self._conn:
+                self._conn.execute('''DELETE FROM cache_entries WHERE key IN ({})'''.format(','.join(['?'] * len(expired_keys))), expired_keys)
+
+        return key_values
+
+
     def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
@@ -61,6 +89,32 @@ class SQLiteFileCache(BaseCache):
             else:
                 self._conn.execute(
                     '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
+
+    def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None):
+        rekeyed_data = {}
+        for key, value in data.items():
+            key = self.make_key(key, version=version)
+            self.validate_key(key)
+
+            rekeyed_data[key] = value
+
+        self._createfile()
+
+        self._cull()
+
+        expiry = self.get_backend_timeout(timeout)
+
+        with self._conn:
+            keys = list(rekeyed_data.keys())
+
+            self._conn.execute('''DELETE FROM cache_entries WHERE key IN ({})'''.format(','.join(['?'] * len(keys))), keys)
+
+            for key in keys:
+                pickled_value = zlib.compress(pickle.dumps(rekeyed_data[key], self.pickle_protocol))
+
+                self._conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
+
+
 
     def touch(self, key, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
@@ -100,6 +154,17 @@ class SQLiteFileCache(BaseCache):
                 return True
         else:
             return False
+
+    def delete_many(self, keys, version=None):
+        rekeyed_keys = []
+        for key in keys:
+            key = self.make_key(key, version=version)
+            self.validate_key(key)
+
+            rekeyed_keys.append(key)
+
+        with self._conn:
+            self._conn.execute('''DELETE FROM cache_entries WHERE key IN ({})'''.format(','.join(['?'] * len(rekeyed_keys))), rekeyed_keys)
 
     def has_key(self, key, version=None):
         key = self.make_key(key, version=version)
