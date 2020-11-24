@@ -11,7 +11,10 @@ class TestCache(unittest.TestCase):
     def tearDown(self):
         super().setUp()
 
-        os.unlink(self.location)
+        try:
+            os.unlink(TestCache.location)
+        except FileNotFoundError:
+            pass
 
     def test_get(self):
         cache = SQLiteFileCache(self.location, {})
@@ -158,24 +161,35 @@ class TestCache(unittest.TestCase):
     def test_missing_file(self):
         cache = SQLiteFileCache(self.location, {})
 
-        os.unlink(self.location)
+        try:
+            os.unlink(self.location)
 
-        self.assertIsNone(cache.get('my_key'))
+            self.assertIsNone(cache.get('my_key'))
 
-        self.assertFalse(cache.touch('my_key'))
+            self.assertFalse(cache.touch('my_key'))
 
-        self.assertFalse(cache.has_key('my_key'))
+            self.assertFalse(cache.has_key('my_key'))
 
-        self.assertFalse(cache.delete('my_key'))
+            self.assertFalse(cache.delete('my_key'))
 
-        cache.clear()
+            cache.clear()
+        except OSError:
+            import sys
+            self.assertIn(sys.platform, ['win32', 'cygwin'])
 
     def test_recreate_file(self):
         cache = SQLiteFileCache(self.location, {})
 
-        os.unlink(self.location)
+        try:
+            os.unlink(self.location)
 
-        self.assertIsNone(cache.get('my_key'))
+            self.assertIsNone(cache.get('my_key'))
+        except OSError:
+            import sys
+            self.assertIn(sys.platform, ['win32', 'cygwin'])
+
+    def test_cache_in_memory(self):
+        cache = SQLiteFileCache(':memory:', {})
 
         cache.set('my_key', 'value')
 
