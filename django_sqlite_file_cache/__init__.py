@@ -28,12 +28,14 @@ class SQLiteFileCache(BaseCache):
 
         conn = sqlite3.connect(self._location)
         try:
-            cur = conn.execute('''SELECT value, expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
+            cur = conn.execute(
+                '''SELECT value, expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
             row = cur.fetchone()
 
             if row is not None:
                 if row[1] < time.time():
-                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                    conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                     conn.commit()
                     return default
                 else:
@@ -58,13 +60,16 @@ class SQLiteFileCache(BaseCache):
 
         conn = sqlite3.connect(self._location)
         try:
-            cur = conn.execute('''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,))
+            cur = conn.execute(
+                '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,))
             row = cur.fetchone()
 
             if row is not None:
-                conn.execute('''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (value, expiry, key,))
+                conn.execute(
+                    '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (value, expiry, key,))
             else:
-                conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, value, expiry))
+                conn.execute(
+                    '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, value, expiry))
 
             conn.commit()
         finally:
@@ -76,17 +81,20 @@ class SQLiteFileCache(BaseCache):
 
         conn = sqlite3.connect(self._location)
         try:
-            cur = conn.execute('''SELECT value, expires_at FROM cache_entries WHERE key = ?''', (key,))
+            cur = conn.execute(
+                '''SELECT value, expires_at FROM cache_entries WHERE key = ?''', (key,))
             row = cur.fetchone()
 
             if row is not None:
                 if row[1] < time.time():
-                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                    conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                     conn.commit()
                     return False
                 else:
                     expiry = self.get_backend_timeout(timeout)
-                    conn.execute('''UPDATE cache_entries SET expires_at = ? WHERE key = ?''', (expiry, key,))
+                    conn.execute(
+                        '''UPDATE cache_entries SET expires_at = ? WHERE key = ?''', (expiry, key,))
                     conn.commit()
                     return True
             else:
@@ -102,11 +110,13 @@ class SQLiteFileCache(BaseCache):
 
         conn = sqlite3.connect(self._location)
         try:
-            cur = conn.execute('''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
+            cur = conn.execute(
+                '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
             row = cur.fetchone()
 
             if row is not None:
-                conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                conn.execute(
+                    '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                 conn.commit()
 
                 if row[0] < time.time():
@@ -126,12 +136,14 @@ class SQLiteFileCache(BaseCache):
 
         conn = sqlite3.connect(self._location)
         try:
-            cur = conn.execute('''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
+            cur = conn.execute(
+                '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
             row = cur.fetchone()
 
             if row is not None:
                 if row[0] < time.time():
-                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                    conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                     conn.commit()
                     return False
                 else:
@@ -178,11 +190,13 @@ class SQLiteFileCache(BaseCache):
                 return
             else:
                 limit = int(count / self._cull_frequency)
-                cur = conn.execute('''SELECT key from cache_entries ORDER BY RANDOM() LIMIT ?''', (limit,))
+                cur = conn.execute(
+                    '''SELECT key FROM cache_entries ORDER BY RANDOM() LIMIT ?''', (limit,))
                 keys = map(lambda row: row[0], cur.fetchall())
 
                 for key in keys:
-                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                    conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
 
                 conn.commit()
         finally:
