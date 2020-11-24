@@ -1,4 +1,3 @@
-import os
 import pickle
 import time
 import zlib
@@ -26,22 +25,17 @@ class SQLiteFileCache(BaseCache):
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
-        try:
-            cur = self._conn.execute(
-                '''SELECT value, expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
-            row = cur.fetchone()
+        row = self._conn.execute(
+            '''SELECT value, expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,)).fetchone()
 
-            if row is not None:
-                if row[1] < time.time():
-                    self._conn.execute(
-                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
-                    self._conn.commit()
-                    return default
-                else:
-                    return pickle.loads(zlib.decompress(row[0]))
-            else:
+        if row is not None:
+            value, expires_at = row
+            if self._is_expired(expires_at):
+                self._delete(key)
                 return default
-        except sqlite3.OperationalError:
+            else:
+                return pickle.loads(zlib.decompress(value))
+        else:
             return default
 
     def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
@@ -52,100 +46,82 @@ class SQLiteFileCache(BaseCache):
 
         self._cull()
 
-        cur = self._conn.execute(
-            '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,))
-        row = cur.fetchone()
+        row = self._conn.execute(
+            '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
 
         expiry = self.get_backend_timeout(timeout)
 
-        pickled_value = zlib.compress(pickle.dumps(value, self.pickle_protocol))
+        pickled_value = zlib.compress(
+            pickle.dumps(value, self.pickle_protocol))
 
-        if row is not None:
-            self._conn.execute(
-                '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (pickled_value, expiry, key,))
-        else:
-            self._conn.execute(
-                '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
-
-        del pickled_value
-
-        self._conn.commit()
+        with self._conn:
+            if row is not None:
+                self._conn.execute(
+                    '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (pickled_value, expiry, key,))
+            else:
+                self._conn.execute(
+                    '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
 
     def touch(self, key, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
-        try:
-            cur = self._conn.execute(
-                '''SELECT value, expires_at FROM cache_entries WHERE key = ?''', (key,))
-            row = cur.fetchone()
+        row = self._conn.execute(
+            '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
 
-            if row is not None:
-                if row[1] < time.time():
-                    self._conn.execute(
-                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
-                    self._conn.commit()
-                    return False
-                else:
-                    expiry = self.get_backend_timeout(timeout)
+        if row is not None:
+            expires_at, = row
+            if self._is_expired(expires_at):
+                self._delete(key)
+                return False
+            else:
+                expiry = self.get_backend_timeout(timeout)
+                with self._conn:
                     self._conn.execute(
                         '''UPDATE cache_entries SET expires_at = ? WHERE key = ?''', (expiry, key,))
-                    self._conn.commit()
-                    return True
-            else:
-                return False
-        except sqlite3.OperationalError:
+                return True
+        else:
             return False
 
     def delete(self, key, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
-        try:
-            cur = self._conn.execute(
-                '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
-            row = cur.fetchone()
+        row = self._conn.execute(
+            '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,)).fetchone()
 
-            if row is not None:
-                self._conn.execute(
-                    '''DELETE FROM cache_entries WHERE key = ?''', (key,))
-                self._conn.commit()
+        if row is not None:
+            expires_at, = row
+            self._delete(key)
 
-                if row[0] < time.time():
-                    return False
-                else:
-                    return True
-            else:
+            if self._is_expired(expires_at):
                 return False
-        except sqlite3.OperationalError:
+            else:
+                return True
+        else:
             return False
 
     def has_key(self, key, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
-        try:
-            cur = self._conn.execute(
-                '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,))
-            row = cur.fetchone()
+        row = self._conn.execute(
+            '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,)).fetchone()
 
-            if row is not None:
-                if row[0] < time.time():
-                    self._conn.execute(
-                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
-                    self._conn.commit()
-                    return False
-                else:
-                    return True
-            else:
+        if row is not None:
+            expires_at, = row
+            if self._is_expired(expires_at):
+                self._delete(key)
                 return False
-        except sqlite3.OperationalError:
+            else:
+                return True
+        else:
             return False
 
     def clear(self):
         try:
-            self._conn.execute('''DELETE FROM cache_entries''')
-            self._conn.commit()
+            with self._conn:
+                self._conn.execute('''DELETE FROM cache_entries''')
         except sqlite3.OperationalError:
             pass
 
@@ -160,8 +136,8 @@ class SQLiteFileCache(BaseCache):
         ''')
 
     def _cull(self):
-        cur = self._conn.execute('''SELECT COUNT(key) FROM cache_entries''')
-        count = cur.fetchone()[0]
+        count = self._conn.execute(
+            '''SELECT COUNT(key) FROM cache_entries''').fetchone()[0]
         if count < self._max_entries:
             return
         elif self._cull_frequency == 0:
@@ -173,8 +149,15 @@ class SQLiteFileCache(BaseCache):
                 '''SELECT key FROM cache_entries ORDER BY RANDOM() LIMIT ?''', (limit,))
             keys = map(lambda row: row[0], cur.fetchall())
 
-            for key in keys:
-                self._conn.execute(
-                    '''DELETE FROM cache_entries WHERE key = ?''', (key,))
+            with self._conn:
+                for key in keys:
+                    self._conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
 
-            self._conn.commit()
+    def _is_expired(self, expires_at):
+        return expires_at < time.time()
+
+    def _delete(self, key):
+        with self._conn:
+            self._conn.execute(
+                '''DELETE FROM cache_entries WHERE key = ?''', (key,))
