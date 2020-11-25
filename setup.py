@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='django-sqlite-file-cache',
-    version='0.4.1',
+    version='0.4.2',
     description='A Django cache backend which has a similar API to FileBasedCache, but reduces the number of inodes used',
     long_description=long_description,
     long_description_content_type='text/markdown',
