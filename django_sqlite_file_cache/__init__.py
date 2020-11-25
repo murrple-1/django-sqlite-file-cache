@@ -74,16 +74,14 @@ class SQLiteFileCache(BaseCache):
 
         self._cull()
 
-        row = self._conn.execute(
-            '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
-
         expiry = self.get_backend_timeout(timeout)
 
         pickled_value = zlib.compress(
             pickle.dumps(value, self.pickle_protocol))
 
         with self._conn:
-            self._conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = ?, expires_at = ?''', (key, pickled_value, expiry, pickled_value, expiry))
+            self._conn.execute(
+                '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
 
     def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None):
         rekeyed_data = {}
@@ -100,12 +98,8 @@ class SQLiteFileCache(BaseCache):
         expiry = self.get_backend_timeout(timeout)
 
         with self._conn:
-            keys = list(rekeyed_data.keys())
-
-            self._conn.execute('''DELETE FROM cache_entries WHERE key IN ({})'''.format(','.join(['?'] * len(keys))), keys)
-
-            for key in keys:
-                pickled_value = zlib.compress(pickle.dumps(rekeyed_data[key], self.pickle_protocol))
+            for key, value in rekeyed_data.items():
+                pickled_value = zlib.compress(pickle.dumps(value, self.pickle_protocol))
 
                 self._conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
 
@@ -189,9 +183,10 @@ class SQLiteFileCache(BaseCache):
         self._conn.execute('''
             CREATE TABLE IF NOT EXISTS cache_entries
             (
-                key TEXT NOT NULL PRIMARY KEY,
+                key TEXT NOT NULL,
                 value BLOB NOT NULL,
-                expires_at REAL NOT NULL
+                expires_at REAL NOT NULL,
+                PRIMARY KEY (key) ON CONFLICT REPLACE
             )
         ''')
 
