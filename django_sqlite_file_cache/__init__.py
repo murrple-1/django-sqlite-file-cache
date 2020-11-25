@@ -170,11 +170,8 @@ class SQLiteFileCache(BaseCache):
             return False
 
     def clear(self):
-        try:
-            with self._conn:
-                self._conn.execute('''DELETE FROM cache_entries''')
-        except sqlite3.OperationalError:
-            pass
+        with self._conn:
+            self._conn.execute('''DELETE FROM cache_entries''')
 
     def _createfile(self):
         self._conn.execute('''

@@ -172,7 +172,11 @@ class TestCache(unittest.TestCase):
 
             self.assertFalse(cache.delete('my_key'))
 
-            cache.clear()
+            try:
+                cache.clear()
+            except sqlite3.OperationalError:
+                import sys
+                self.assertIn(sys.platform, ['linux'])
         except OSError:
             import sys
             self.assertIn(sys.platform, ['win32', 'cygwin'])
