@@ -206,6 +206,7 @@ class TestCache(unittest.TestCase):
         })
 
         self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 3)
+        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3', 'extra_key'])), 3)
 
     def test_get_many_no_keys(self):
         cache = SQLiteFileCache(self.location, {})

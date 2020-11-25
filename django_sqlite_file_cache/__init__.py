@@ -118,9 +118,9 @@ class SQLiteFileCache(BaseCache):
             else:
                 expiry = self.get_backend_timeout(timeout)
                 with self._conn:
-                    self._conn.execute(
+                    cur = self._conn.execute(
                         '''UPDATE cache_entries SET expires_at = ? WHERE key = ?''', (expiry, key,))
-                return True
+                    return cur.rowcount > 0
         else:
             return False
 
