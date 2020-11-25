@@ -83,12 +83,7 @@ class SQLiteFileCache(BaseCache):
             pickle.dumps(value, self.pickle_protocol))
 
         with self._conn:
-            if row is not None:
-                self._conn.execute(
-                    '''UPDATE cache_entries SET value = ?, expires_at = ? WHERE key = ?''', (pickled_value, expiry, key,))
-            else:
-                self._conn.execute(
-                    '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
+            self._conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = ?, expires_at = ?''', (key, pickled_value, expiry, pickled_value, expiry))
 
     def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None):
         rekeyed_data = {}
