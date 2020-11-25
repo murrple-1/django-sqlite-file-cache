@@ -103,8 +103,6 @@ class SQLiteFileCache(BaseCache):
 
                 self._conn.execute('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
 
-
-
     def touch(self, key, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
