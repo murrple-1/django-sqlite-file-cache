@@ -86,16 +86,16 @@ class SQLiteFileCache(BaseCache):
         key = self.make_key(key, version=version)
         self.validate_key(key)
 
-        expiry = self.get_backend_timeout(timeout)
-
-        pickled_value = zlib.compress(
-            pickle.dumps(value, self.pickle_protocol))
-
         conn = self._connect()
         try:
             with conn:
                 self._createfile(conn)
                 self._cull(conn)
+                
+                expiry = self.get_backend_timeout(timeout)
+                
+                pickled_value = zlib.compress(
+                    pickle.dumps(value, self.pickle_protocol))
 
                 conn.execute(
                     '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
@@ -144,6 +144,7 @@ class SQLiteFileCache(BaseCache):
                         return False
                     else:
                         expiry = self.get_backend_timeout(timeout)
+
                         conn.execute(
                             '''UPDATE cache_entries SET expires_at = ? WHERE key = ?''', (expiry, key,))
                         return True
