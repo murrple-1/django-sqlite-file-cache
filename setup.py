@@ -32,5 +32,5 @@ setup(
     ],
     keywords='django cache sqlite sqlite2 sqlite3 file filebased',
     packages=find_packages(exclude=['tests']),
-    install_requires=['six', 'Django'],
+    install_requires=['Django'],
 )
