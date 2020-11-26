@@ -10,17 +10,16 @@ class SQLiteFileCache(BaseCache):
     pickle_protocol = pickle.HIGHEST_PROTOCOL
 
     def __init__(self, location, params):
-        if location == ':memory:':
-            raise ValueError('\':memory:\' is not supported')
-
         super().__init__(params)
         self._location = location
+        self._conn = None
+
         conn = self._connect()
         try:
             with conn:
                 self._createfile(conn)
         finally:
-            conn.close()
+            self._close()
 
     def add(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         if self.has_key(key, version):
@@ -51,7 +50,7 @@ class SQLiteFileCache(BaseCache):
         except sqlite3.OperationalError:
             return default
         finally:
-            conn.close()
+            self._close()
 
     def get_many(self, keys, version=None):
         if len(keys) == 0:
@@ -81,7 +80,7 @@ class SQLiteFileCache(BaseCache):
         except sqlite3.OperationalError:
             return {}
         finally:
-            conn.close()
+            self._close()
 
     def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
@@ -97,10 +96,11 @@ class SQLiteFileCache(BaseCache):
             with conn:
                 self._createfile(conn)
                 self._cull(conn)
+
                 conn.execute(
                     '''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', (key, pickled_value, expiry))
         finally:
-            conn.close()
+            self._close()
 
     def _set_many_tuple_generator(self, rekeyed_data, expiry):
         for key, value in rekeyed_data.items():
@@ -132,6 +132,8 @@ class SQLiteFileCache(BaseCache):
         conn = self._connect()
         try:
             with conn:
+                self._createfile(conn)
+
                 row = conn.execute(
                     '''SELECT expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
 
@@ -148,7 +150,7 @@ class SQLiteFileCache(BaseCache):
                 else:
                     return False
         finally:
-            conn.close()
+            self._close()
 
     def delete(self, key, version=None):
         key = self.make_key(key, version=version)
@@ -157,6 +159,8 @@ class SQLiteFileCache(BaseCache):
         conn = self._connect()
         try:
             with conn:
+                self._createfile(conn)
+
                 row = conn.execute(
                     '''SELECT expires_at FROM cache_entries WHERE key = ? LIMIT 1''', (key,)).fetchone()
 
@@ -171,7 +175,7 @@ class SQLiteFileCache(BaseCache):
                 else:
                     return False
         finally:
-            conn.close()
+            self._close()
 
     def delete_many(self, keys, version=None):
         rekeyed_key_tuples = []
@@ -184,9 +188,11 @@ class SQLiteFileCache(BaseCache):
         conn = self._connect()
         try:
             with conn:
+                self._createfile(conn)
+
                 conn.executemany('''DELETE FROM cache_entries WHERE key = ?''', rekeyed_key_tuples)
         finally:
-            conn.close()
+            self._close()
 
     def has_key(self, key, version=None):
         key = self.make_key(key, version=version)
@@ -210,18 +216,33 @@ class SQLiteFileCache(BaseCache):
         except sqlite3.OperationalError:
             return False
         finally:
-            conn.close()
+            self._close()
 
     def clear(self):
         conn = self._connect()
         try:
             with conn:
+                self._createfile(conn)
+
                 conn.execute('''DELETE FROM cache_entries''')
         finally:
-            conn.close()
+            self._close()
 
     def _connect(self):
-        return sqlite3.connect(self._location, isolation_level='EXCLUSIVE')
+        if self._location == ':memory:':
+            if self._conn is None:
+                self._conn = sqlite3.connect(':memory:')
+        else:
+            self._conn = sqlite3.connect(self._location, isolation_level='EXCLUSIVE')
+
+        return self._conn
+
+    def _close(self):
+        if self._location == ':memory:':
+            pass
+        else:
+            self._conn.close()
+            self._conn = None
 
     def _createfile(self, conn):
         conn.execute('''
