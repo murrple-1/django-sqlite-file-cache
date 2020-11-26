@@ -181,15 +181,16 @@ class TestCache(unittest.TestCase):
     def test_set_get_many(self):
         cache = SQLiteFileCache(self.location, {})
 
-
         cache.set_many({
             'my_key1': 'value',
             'my_key2': 4,
             'my_key3': True,
         })
 
-        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 3)
-        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3', 'extra_key'])), 3)
+        self.assertEqual(
+            len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 3)
+        self.assertEqual(
+            len(cache.get_many(['my_key1', 'my_key2', 'my_key3', 'extra_key'])), 3)
 
     def test_get_many_no_keys(self):
         cache = SQLiteFileCache(self.location, {})
@@ -198,7 +199,6 @@ class TestCache(unittest.TestCase):
 
     def test_delete_many(self):
         cache = SQLiteFileCache(self.location, {})
-
 
         cache.set_many({
             'my_key1': 'value',
@@ -225,14 +225,14 @@ class TestCache(unittest.TestCase):
             'TIMEOUT': 0,
         })
 
-
         cache.set_many({
             'my_key1': 'value',
             'my_key2': 4,
             'my_key3': True,
         })
 
-        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 0)
+        self.assertEqual(
+            len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 0)
 
     def test_sqlite_timeout(self):
         cache = SQLiteFileCache(self.location, {
@@ -244,6 +244,7 @@ class TestCache(unittest.TestCase):
         cache.set('my_key', 'value')
 
         self.assertEqual(cache.get('my_key'), 'value')
+
 
 if __name__ == '__main__':
     unittest.main()

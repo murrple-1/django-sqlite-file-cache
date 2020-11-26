@@ -61,7 +61,8 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     value, expires_at = row
                     if self._is_expired(expires_at):
-                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                        conn.execute(
+                            '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return default
                     else:
                         return pickle.loads(zlib.decompress(value))
@@ -88,13 +89,16 @@ class SQLiteFileCache(BaseCache):
                 key_values = {}
 
                 for key in new_keys:
-                    row = conn.execute('''SELECT value, expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
+                    row = conn.execute(
+                        '''SELECT value, expires_at FROM cache_entries WHERE key = ?''', (key,)).fetchone()
                     if row is not None:
                         value, expires_at = row
                         if self._is_expired(expires_at):
-                            conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                            conn.execute(
+                                '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         else:
-                            key_values[key] = pickle.loads(zlib.decompress(value))
+                            key_values[key] = pickle.loads(
+                                zlib.decompress(value))
 
                 return key_values
         except sqlite3.OperationalError:
@@ -124,7 +128,8 @@ class SQLiteFileCache(BaseCache):
 
     def _set_many_tuple_generator(self, rekeyed_data, expiry):
         for key, value in rekeyed_data.items():
-            pickled_value = zlib.compress(pickle.dumps(value, self.pickle_protocol))
+            pickled_value = zlib.compress(
+                pickle.dumps(value, self.pickle_protocol))
 
             yield key, pickled_value, expiry
 
@@ -144,7 +149,8 @@ class SQLiteFileCache(BaseCache):
                 self._createfile(conn)
                 self._cull(conn)
 
-                conn.executemany('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', self._set_many_tuple_generator(rekeyed_data, expiry))
+                conn.executemany('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''',
+                                 self._set_many_tuple_generator(rekeyed_data, expiry))
         finally:
             self._close()
 
@@ -163,7 +169,8 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     expires_at, = row
                     if self._is_expired(expires_at):
-                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                        conn.execute(
+                            '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return False
                     else:
                         expiry = self.get_backend_timeout(timeout)
@@ -190,7 +197,8 @@ class SQLiteFileCache(BaseCache):
 
                 if row is not None:
                     expires_at, = row
-                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                    conn.execute(
+                        '''DELETE FROM cache_entries WHERE key = ?''', (key,))
 
                     if self._is_expired(expires_at):
                         return False
@@ -214,7 +222,8 @@ class SQLiteFileCache(BaseCache):
             with conn:
                 self._createfile(conn)
 
-                conn.executemany('''DELETE FROM cache_entries WHERE key = ?''', rekeyed_key_tuples)
+                conn.executemany(
+                    '''DELETE FROM cache_entries WHERE key = ?''', rekeyed_key_tuples)
         finally:
             self._close()
 
@@ -231,7 +240,8 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     expires_at, = row
                     if self._is_expired(expires_at):
-                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
+                        conn.execute(
+                            '''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return False
                     else:
                         return True
@@ -254,7 +264,8 @@ class SQLiteFileCache(BaseCache):
 
     def _connect(self):
         if self._conn is None:
-            self._conn = sqlite3.connect(*self._connect_args, **self._connect_kwargs)
+            self._conn = sqlite3.connect(
+                *self._connect_args, **self._connect_kwargs)
 
         return self._conn
 
@@ -287,7 +298,8 @@ class SQLiteFileCache(BaseCache):
             cur = conn.execute(
                 '''SELECT key FROM cache_entries ORDER BY RANDOM() LIMIT ?''', (limit,))
             key_tuples = cur.fetchall()
-            conn.executemany('''DELETE FROM cache_entries WHERE key = ?''', key_tuples)
+            conn.executemany(
+                '''DELETE FROM cache_entries WHERE key = ?''', key_tuples)
 
     def _is_expired(self, expires_at):
         return expires_at < time.time()
