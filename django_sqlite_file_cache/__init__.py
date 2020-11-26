@@ -11,9 +11,29 @@ class SQLiteFileCache(BaseCache):
 
     def __init__(self, location, params):
         super().__init__(params)
-        self._location = location
-        self._conn = None
 
+        connect_args = [location]
+        connect_kwargs = {}
+
+        is_in_memory = location == ':memory:'
+
+        if not is_in_memory:
+            connect_kwargs['isolation_level'] = 'EXCLUSIVE'
+            self._should_close = True
+        else:
+            self._should_close = False
+
+        options = params.get('OPTIONS', {})
+
+        try:
+            connect_kwargs['timeout'] = options['SQLITE_TIMEOUT']
+        except KeyError:
+            pass
+
+        self._connect_args = connect_args
+        self._connect_kwargs = connect_kwargs
+
+        self._conn = None
         conn = self._connect()
         try:
             with conn:
@@ -41,7 +61,7 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     value, expires_at = row
                     if self._is_expired(expires_at):
-                        self._delete(conn, key)
+                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return default
                     else:
                         return pickle.loads(zlib.decompress(value))
@@ -72,7 +92,7 @@ class SQLiteFileCache(BaseCache):
                     if row is not None:
                         value, expires_at = row
                         if self._is_expired(expires_at):
-                            self._delete(conn, key)
+                            conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         else:
                             key_values[key] = pickle.loads(zlib.decompress(value))
 
@@ -91,9 +111,9 @@ class SQLiteFileCache(BaseCache):
             with conn:
                 self._createfile(conn)
                 self._cull(conn)
-                
+
                 expiry = self.get_backend_timeout(timeout)
-                
+
                 pickled_value = zlib.compress(
                     pickle.dumps(value, self.pickle_protocol))
 
@@ -119,11 +139,14 @@ class SQLiteFileCache(BaseCache):
         expiry = self.get_backend_timeout(timeout)
 
         conn = self._connect()
-        with conn:
-            self._createfile(conn)
-            self._cull(conn)
+        try:
+            with conn:
+                self._createfile(conn)
+                self._cull(conn)
 
-            conn.executemany('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', self._set_many_tuple_generator(rekeyed_data, expiry))
+                conn.executemany('''INSERT INTO cache_entries (key, value, expires_at) VALUES (?, ?, ?)''', self._set_many_tuple_generator(rekeyed_data, expiry))
+        finally:
+            self._close()
 
     def touch(self, key, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
@@ -140,7 +163,7 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     expires_at, = row
                     if self._is_expired(expires_at):
-                        self._delete(conn, key)
+                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return False
                     else:
                         expiry = self.get_backend_timeout(timeout)
@@ -167,7 +190,7 @@ class SQLiteFileCache(BaseCache):
 
                 if row is not None:
                     expires_at, = row
-                    self._delete(conn, key)
+                    conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
 
                     if self._is_expired(expires_at):
                         return False
@@ -208,7 +231,7 @@ class SQLiteFileCache(BaseCache):
                 if row is not None:
                     expires_at, = row
                     if self._is_expired(expires_at):
-                        self._delete(conn, key)
+                        conn.execute('''DELETE FROM cache_entries WHERE key = ?''', (key,))
                         return False
                     else:
                         return True
@@ -230,18 +253,13 @@ class SQLiteFileCache(BaseCache):
             self._close()
 
     def _connect(self):
-        if self._location == ':memory:':
-            if self._conn is None:
-                self._conn = sqlite3.connect(':memory:')
-        else:
-            self._conn = sqlite3.connect(self._location, isolation_level='EXCLUSIVE')
+        if self._conn is None:
+            self._conn = sqlite3.connect(*self._connect_args, **self._connect_kwargs)
 
         return self._conn
 
     def _close(self):
-        if self._location == ':memory:':
-            pass
-        else:
+        if self._should_close and self._conn is not None:
             self._conn.close()
             self._conn = None
 
@@ -273,7 +291,3 @@ class SQLiteFileCache(BaseCache):
 
     def _is_expired(self, expires_at):
         return expires_at < time.time()
-
-    def _delete(self, conn, key):
-        conn.execute(
-            '''DELETE FROM cache_entries WHERE key = ?''', (key,))

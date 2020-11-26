@@ -234,5 +234,16 @@ class TestCache(unittest.TestCase):
 
         self.assertEqual(len(cache.get_many(['my_key1', 'my_key2', 'my_key3'])), 0)
 
+    def test_sqlite_timeout(self):
+        cache = SQLiteFileCache(self.location, {
+            'OPTIONS': {
+                'SQLITE_TIMEOUT': 1.0,
+            },
+        })
+
+        cache.set('my_key', 'value')
+
+        self.assertEqual(cache.get('my_key'), 'value')
+
 if __name__ == '__main__':
     unittest.main()
