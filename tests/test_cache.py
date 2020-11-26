@@ -165,11 +165,15 @@ class TestCache(unittest.TestCase):
 
         self.assertIsNone(cache.get('my_key'))
 
+        self.assertEqual(len(cache.get_many(['my_key1', 'my_key2'])), 0)
+
         self.assertFalse(cache.touch('my_key'))
 
         self.assertFalse(cache.has_key('my_key'))
 
         self.assertFalse(cache.delete('my_key'))
+
+        cache.delete_many(['my_key1', 'my_key2'])
 
         cache.clear()
 
