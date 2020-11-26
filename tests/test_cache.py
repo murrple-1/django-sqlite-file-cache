@@ -163,19 +163,23 @@ class TestCache(unittest.TestCase):
 
         os.unlink(self.location)
 
+        self.assertFalse(cache.has_key('my_key'))
+
         self.assertIsNone(cache.get('my_key'))
 
         self.assertEqual(len(cache.get_many(['my_key1', 'my_key2'])), 0)
 
-        self.assertFalse(cache.touch('my_key'))
+        with self.assertRaises(sqlite3.OperationalError):
+            cache.touch('my_key')
 
-        self.assertFalse(cache.has_key('my_key'))
+        with self.assertRaises(sqlite3.OperationalError):
+            cache.delete('my_key')
 
-        self.assertFalse(cache.delete('my_key'))
+        with self.assertRaises(sqlite3.OperationalError):
+            cache.delete_many(['my_key1', 'my_key2'])
 
-        cache.delete_many(['my_key1', 'my_key2'])
-
-        cache.clear()
+        with self.assertRaises(sqlite3.OperationalError):
+            cache.clear()
 
     def test_cache_in_memory(self):
         with self.assertRaises(ValueError):

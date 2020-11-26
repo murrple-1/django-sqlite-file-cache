@@ -147,8 +147,6 @@ class SQLiteFileCache(BaseCache):
                         return True
                 else:
                     return False
-        except sqlite3.OperationalError:
-            return False
         finally:
             conn.close()
 
@@ -172,8 +170,6 @@ class SQLiteFileCache(BaseCache):
                         return True
                 else:
                     return False
-        except sqlite3.OperationalError:
-            return False
         finally:
             conn.close()
 
@@ -189,8 +185,6 @@ class SQLiteFileCache(BaseCache):
         try:
             with conn:
                 conn.executemany('''DELETE FROM cache_entries WHERE key = ?''', rekeyed_key_tuples)
-        except sqlite3.OperationalError:
-            pass
         finally:
             conn.close()
 
@@ -223,8 +217,6 @@ class SQLiteFileCache(BaseCache):
         try:
             with conn:
                 conn.execute('''DELETE FROM cache_entries''')
-        except sqlite3.OperationalError:
-            pass
         finally:
             conn.close()
 
