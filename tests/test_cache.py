@@ -161,43 +161,21 @@ class TestCache(unittest.TestCase):
     def test_missing_file(self):
         cache = SQLiteFileCache(self.location, {})
 
-        try:
-            os.unlink(self.location)
+        os.unlink(self.location)
 
-            self.assertIsNone(cache.get('my_key'))
+        self.assertIsNone(cache.get('my_key'))
 
-            self.assertFalse(cache.touch('my_key'))
+        self.assertFalse(cache.touch('my_key'))
 
-            self.assertFalse(cache.has_key('my_key'))
+        self.assertFalse(cache.has_key('my_key'))
 
-            self.assertFalse(cache.delete('my_key'))
+        self.assertFalse(cache.delete('my_key'))
 
-            try:
-                cache.clear()
-            except sqlite3.OperationalError:
-                import sys
-                self.assertIn(sys.platform, ['linux'])
-        except OSError:
-            import sys
-            self.assertIn(sys.platform, ['win32', 'cygwin'])
-
-    def test_recreate_file(self):
-        cache = SQLiteFileCache(self.location, {})
-
-        try:
-            os.unlink(self.location)
-
-            self.assertIsNone(cache.get('my_key'))
-        except OSError:
-            import sys
-            self.assertIn(sys.platform, ['win32', 'cygwin'])
+        cache.clear()
 
     def test_cache_in_memory(self):
-        cache = SQLiteFileCache(':memory:', {})
-
-        cache.set('my_key', 'value')
-
-        self.assertEqual(cache.get('my_key'), 'value')
+        with self.assertRaises(ValueError):
+            SQLiteFileCache(':memory:', {})
 
     def test_set_get_many(self):
         cache = SQLiteFileCache(self.location, {})
