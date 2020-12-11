@@ -245,6 +245,24 @@ class TestCache(unittest.TestCase):
 
         self.assertEqual(cache.get('my_key'), 'value')
 
+    def test_noneexpiry(self):
+        cache = SQLiteFileCache(self.location, {})
+
+        cache.set('my_key', 'value', None)
+
+        self.assertEqual(cache.get('my_key'), 'value')
+
+    def test_nonevalue(self):
+        cache = SQLiteFileCache(self.location, {})
+
+        cache.set('my_key', None)
+
+        conn = sqlite3.connect(self.location)
+        cur = conn.execute('''SELECT value FROM cache_entries WHERE key = ?''', (cache.make_key('my_key'),))
+        value = cur.fetchone()[0]
+        conn.close()
+        self.assertIs(type(value), bytes)
+
 
 if __name__ == '__main__':
     unittest.main()

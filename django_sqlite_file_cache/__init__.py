@@ -280,7 +280,7 @@ class SQLiteFileCache(BaseCache):
             (
                 key TEXT NOT NULL,
                 value BLOB NOT NULL,
-                expires_at REAL NOT NULL,
+                expires_at REAL,
                 PRIMARY KEY (key) ON CONFLICT REPLACE
             )
         ''')
@@ -302,4 +302,4 @@ class SQLiteFileCache(BaseCache):
                 '''DELETE FROM cache_entries WHERE key = ?''', key_tuples)
 
     def _is_expired(self, expires_at):
-        return expires_at < time.time()
+        return expires_at is not None and expires_at < time.time()
