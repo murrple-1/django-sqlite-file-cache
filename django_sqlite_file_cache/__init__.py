@@ -1,3 +1,4 @@
+import os
 import pickle
 import time
 import zlib
@@ -264,6 +265,12 @@ class SQLiteFileCache(BaseCache):
 
     def _connect(self):
         if self._conn is None:
+            location, = self._connect_args
+
+            dirname = os.path.dirname(location)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+
             self._conn = sqlite3.connect(
                 *self._connect_args, **self._connect_kwargs)
 
